@@ -161,6 +161,15 @@ REST_FRAMEWORK = {
         'user': '1000/hour'
     },
     'EXCEPTION_HANDLER': 'rest_framework.views.exception_handler',
+    # for development, you might want to enable the browsable API
+    'SPECTACULAR_SETTINGS': {
+        'SCHEMA_PATH_PREFIX': '/api/',
+        'TITLE': 'ARA API',
+        'VERSION': '1.0.0',
+        'SERVE_PERMISSIONS': [
+            'rest_framework.permissions.AllowAny',  
+        ],
+    },
 }
 
 # CORS CONFIGURATION
@@ -228,18 +237,25 @@ LOGGING = {
     },
 }
 
-# SECURITY SETTINGS (Production)
-SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "True") == "True"
-SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "True") == "True"
-CSRF_COOKIE_SECURE = os.getenv("CSRF_COOKIE_SECURE", "True") == "True"
-SECURE_BROWSER_XSS_FILTER = os.getenv("SECURE_BROWSER_XSS_FILTER", "True") == "True"
+# SECURITY SETTINGS
+if DEBUG:  # Local development
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_BROWSER_XSS_FILTER = False
+else:  # Production
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
 
-if os.getenv("ENABLE_CSP", "False") == "True":
+if os.getenv("ENABLE_CSP", "False") == "True" and not DEBUG:
     SECURE_CONTENT_SECURITY_POLICY = {
         'default-src': ("'self'",),
         'script-src': ("'self'", "'unsafe-inline'"),
         'style-src': ("'self'", "'unsafe-inline'"),
     }
+
 
 # EMAIL CONFIGURATION
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
