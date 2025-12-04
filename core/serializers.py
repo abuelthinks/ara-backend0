@@ -38,6 +38,36 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
+    
+class SpecialistListSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+    display_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "user_id",
+            "full_name",
+            "display_title",      # e.g. "Speech-Language Pathologist"
+            "specialization",     # raw specialization text
+            "years_experience",
+            "focus_areas",        # list → chips on frontend
+            "phone",
+            "email",
+            "accepts_new_assessments",
+        ]
+        read_only_fields = fields  # directory is read-only for parents
+
+    def get_full_name(self, obj):
+        name = obj.get_full_name()
+        return name if name else obj.username
+
+    def get_display_title(self, obj):
+        # Prefer explicit specialist_title if you added it; fall back to specialization
+        title = getattr(obj, "specialist_title", None)
+        if title:
+            return title
+        return obj.specialization
 
 
 # ==================== CHILD & ELIGIBILITY SERIALIZERS ====================

@@ -25,7 +25,7 @@ from core.serializers import (
     WeeklyProgressReportSerializer, WeeklyServicesProvidedSerializer,
     WeeklyGoalsProgressSerializer, WeeklyProgressSummarySerializer,
     ProgressReportAggregateSerializer, AuditLogSerializer,
-    AIGenerationLogSerializer
+    AIGenerationLogSerializer, SpecialistListSerializer,
 )
 
 
@@ -59,6 +59,27 @@ class UserViewSet(viewsets.ModelViewSet):
         """Get current user"""
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
+    
+class SpecialistDirectoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only directory of specialists for parent booking / selection.
+    """
+    serializer_class = SpecialistListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["first_name", "last_name", "email", "specialization"]
+    ordering_fields = ["first_name", "last_name", "years_experience", "created_at"]
+    ordering = ["first_name"]
+
+    def get_queryset(self):
+        qs = User.objects.filter(role="SPECIALIST", is_active=True)
+        # Optional: only show those accepting new assessments if field exists
+        if hasattr(User, "accepts_new_assessments"):
+            qs = qs.filter(accepts_new_assessments=True)
+        specialization = self.request.query_params.get("specialization")
+        if specialization:
+            qs = qs.filter(specialization__iexact=specialization)
+        return qs
 
 
 # ==================== CHILD VIEWSET ====================

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from core.views import (
-    UserViewSet, ChildViewSet, ChildrenEligibilityViewSet,
+    SpecialistDirectoryViewSet, UserViewSet, ChildViewSet, ChildrenEligibilityViewSet,
     DevelopmentalHistoryViewSet, AssessmentViewSet,
     AssessmentSkillAreaViewSet, DisorderScreeningViewSet,
     ParentInputViewSet, TeacherInputViewSet, SpecialistInputViewSet,
@@ -33,6 +33,7 @@ router.register(r'specialist-inputs', SpecialistInputViewSet, basename='speciali
 
 # Services and Therapies
 router.register(r'services', ServicesAndTherapiesViewSet, basename='service')
+router.register(r"specialists", SpecialistDirectoryViewSet, basename="specialist-directory")
 
 # IEP management
 router.register(r'ieps', IEPViewSet, basename='iep')

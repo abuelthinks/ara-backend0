@@ -26,6 +26,20 @@ class Command(BaseCommand):
                 'role': 'SPECIALIST',
             },
             {
+                'username': 'specialist2',
+                'email': 'specialist2@demo.com',
+                'first_name': 'Demo2',
+                'last_name': 'Specialist2',
+                'role': 'SPECIALIST',
+            },
+                        {
+                'username': 'specialist3',
+                'email': 'specialist3@demo.com',
+                'first_name': 'Demo3',
+                'last_name': 'Specialist3',
+                'role': 'SPECIALIST',
+            },
+            {
                 'username': 'admin',
                 'email': 'admin@demo.com',
                 'first_name': 'Demo',

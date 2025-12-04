@@ -12,35 +12,56 @@ class User(AbstractUser):
         ('SPECIALIST', 'Specialist'),
         ('PARENT', 'Parent/Guardian'),
     ]
-    
+
     user_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, null=False)
     phone = models.CharField(max_length=20, blank=True, null=True)
-    specialization = models.CharField(max_length=100, blank=True, null=True, 
-                                      help_text="For specialists: Speech Therapy, Occupational Therapy, etc.")
-    is_active = models.BooleanField(default=True)  # Soft delete flag
+
+    # Existing
+    specialization = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="For specialists: Speech Therapy, Occupational Therapy, etc."
+    )
+
+    # NEW specialist-facing fields
+    specialist_title = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="e.g., Speech-Language Pathologist, Occupational Therapist"
+    )
+    specialist_bio = models.TextField(
+        blank=True,
+        help_text="Short parent-friendly description of experience and focus areas."
+    )
+    years_experience = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        help_text="Years of professional practice as a specialist."
+    )
+    focus_areas = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of focus areas, e.g. ['Autism', 'Early Literacy', 'Behavior'].",
+    )
+    accepts_new_assessments = models.BooleanField(
+        default=True,
+        help_text="Whether this specialist is currently accepting new assessment bookings."
+    )
+
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    groups = models.ManyToManyField(
-        'auth.Group',
-        related_name='core_user_set',  # Changed from default 'user_set'
-        blank=True,
-        help_text='The groups this user belongs to.'
-    )
-    user_permissions = models.ManyToManyField(
-        'auth.Permission',
-        related_name='core_user_permissions_set',  # Changed from default 'user_set'
-        blank=True,
-        help_text='Specific permissions for this user.'
-    )
-    
+    # groups / user_permissions as you already have...
+
     class Meta:
         indexes = [
             models.Index(fields=['role']),
             models.Index(fields=['email']),
         ]
-    
+
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_role_display()})"
 
