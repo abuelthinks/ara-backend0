@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from core.models import User
-from django.contrib.auth.password_validation import validate_password
 
 
 class ParentRegisterSerializer(serializers.ModelSerializer):
@@ -8,7 +7,7 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True, min_length=8)
     email = serializers.EmailField()
     first_name = serializers.CharField(max_length=100)
-    phone = serializers.CharField(max_length=20, required=False)
+    phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -29,10 +28,8 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({"password": "Passwords do not match."})
         
+        # Check for existing email in User model
         if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({"email": "Email already registered."})
-        
-        if User.objects.filter(username=data['email']).exists():
             raise serializers.ValidationError({"email": "Email already registered."})
         
         return data
@@ -48,7 +45,7 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
             first_name=validated_data['first_name'],
             password=validated_data['password'],
             role='PARENT',
-            phone=phone
+            phone=phone if phone else ''
         )
         
         return user

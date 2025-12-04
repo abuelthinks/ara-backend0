@@ -75,6 +75,31 @@ class Child(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    intake_status = models.CharField(
+        max_length=20,
+        choices=[('pending', 'Pending'), ('completed', 'Completed')],
+        default='pending'
+    )
+    
+    assessment_status = models.CharField(
+        max_length=50,
+        choices=[
+            ('none', 'None'),
+            ('for_assessment', 'For Assessment'),
+            ('scheduled', 'Scheduled'),
+            ('completed', 'Completed'),
+        ],
+        default='none'
+    )
+    
+    assessment_scheduled_date = models.DateTimeField(null=True, blank=True)
+    
+    enrollment_status = models.CharField(
+        max_length=20,
+        choices=[('none', 'None'), ('enrolled', 'Enrolled')],
+        default='none'
+    )
     
     class Meta:
         indexes = [
@@ -303,7 +328,12 @@ class ParentInput(models.Model):
     has_prior_iep = models.BooleanField(default=False)
     other_prior_services = models.TextField(blank=True, 
                                            help_text="Other services received, e.g., therapy")
-    
+    prior_services = models.JSONField(
+    default=list,
+    blank=True,
+    help_text="Selected prior services"
+)
+
     # Areas of concern (stored as JSON array of selected options)
     areas_of_concern = models.JSONField(default=list, blank=True,
                                        help_text="Selected areas: Communication, Cognitive Development, Motor Skills, Social Interaction, Behavioral Skills, Emotional Regulation, Sensory Processing, Adaptive Skills")
@@ -367,7 +397,12 @@ class ParentInput(models.Model):
     physical_accommodations_required = models.BooleanField(default=False)
     physical_accommodations_details = models.TextField(blank=True,
                                                       help_text="Describe physical accommodations needed")
-    
+    motor_needs = models.JSONField(
+    default=list,
+    blank=True,
+    help_text="Selected motor needs"
+)
+
     # ==================== SECTION F: Goals and Expectations ====================
     # Goals timeframe
     goals_timeframe = models.CharField(max_length=20, choices=TIMEFRAME_CHOICES, blank=True)
@@ -396,6 +431,20 @@ class ParentInput(models.Model):
     additional_support_resources_needed = models.TextField(blank=True,
                                                           help_text="What additional support or resources would help at home?")
     
+    # ==================== SECTION H: Child Strengths ====================
+    child_strengths = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Selected strengths"
+    )
+    
+    # ==================== SECTION I: Daily Living Skills ====================
+    eating_independence = models.CharField(max_length=50, blank=True)
+    dressing_independence = models.CharField(max_length=50, blank=True)
+    toilet_skills = models.CharField(max_length=50, blank=True)
+    sleep_quality = models.CharField(max_length=50, blank=True)
+    daily_living_notes = models.TextField(blank=True)
+
     # ==================== Timestamps ====================
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -428,7 +477,12 @@ class TeacherInput(models.Model):
     
     grade_level = models.CharField(max_length=50, blank=True)
     sessions_attended = models.IntegerField(blank=True, null=True)
-    
+    intake_status = models.CharField(
+        max_length=20,
+        choices=[('pending', 'Pending'), ('completed', 'Completed')],
+        default='pending'
+    )
+
     # Subject progress tracking
     prewriting_progress = models.CharField(max_length=50, choices=PROGRESS_CHOICES, blank=True)
     prewriting_notes = models.TextField(blank=True)

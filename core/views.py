@@ -189,16 +189,72 @@ class DisorderScreeningViewSet(viewsets.ModelViewSet):
 # ==================== PARENT INPUT VIEWSET ====================
 class ParentInputViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for ParentInput with automatic Child creation
+    ViewSet for ParentInput with automatic Child creation and edit support
     """
-    queryset = ParentInput.objects.all()
     serializer_class = ParentInputSerializer
     permission_classes = [permissions.IsAuthenticated]
     
-    def get_queryset(self):
-        """Filter by current user (parent)"""
-        return ParentInput.objects.filter(parent=self.request.user)
+    # ✅ ADD THESE FOUR LINES
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['child']  # Enable filtering: GET /parent-inputs/?child=123
+    ordering_fields = ['created_at', 'updated_at']
+    ordering = ['-updated_at']  # Most recent first
     
+    def get_queryset(self):
+        """Filter by current user (parent) + auto-set intake_status"""
+        user = self.request.user
+        queryset = ParentInput.objects.filter(parent=user)
+        
+        # ✅ Auto-set intake_status based on completion
+        for obj in queryset:
+            if obj.intake_status != 'completed':
+                # Check if form looks complete
+                is_complete = bool(
+                    obj.child and 
+                    obj.first_name and 
+                    obj.last_name
+                )
+                if is_complete:
+                    obj.intake_status = 'completed'
+                    obj.save(update_fields=['intake_status'])
+        
+        return queryset
+    
+    @action(detail=False, methods=['get'])
+    def latest(self, request):
+        """
+        Get the latest parent input for the current user
+        Returns completion status based on submission_date
+        """
+        try:
+            parent_input = ParentInput.objects.filter(
+                parent=request.user
+            ).latest('submission_date')
+            
+            is_complete = bool(
+                parent_input.child and
+                parent_input.first_name and
+                parent_input.last_name
+            )
+            
+            status_str = 'completed' if is_complete else 'in-progress'
+            
+            return Response({
+                'id': str(parent_input.parent_input_id),
+                'status': status_str,
+                'child_id': str(parent_input.child.child_id) if parent_input.child else None,
+                'submission_date': parent_input.submission_date,
+                'updated_at': parent_input.updated_at,
+            })
+        except ParentInput.DoesNotExist:
+            return Response({
+                'id': None,
+                'status': 'pending',
+                'child_id': None,
+                'submission_date': None,
+                'updated_at': None,
+            })
+
     def create(self, request, *args, **kwargs):
         """
         Override create to:
@@ -211,13 +267,19 @@ class ParentInputViewSet(viewsets.ModelViewSet):
             data = request.data.copy()
             
             # Extract child information
-            first_name = data.get('first_name')
-            last_name = data.get('last_name')
-            date_of_birth = data.get('date_of_birth')
-            gender = data.get('gender')
-            grade_level = data.get('grade_level')
-            primary_language = data.get('primary_language')
-            
+            first_name = data.get('childFirstName') or data.get('first_name')
+            last_name = data.get('childLastName') or data.get('last_name')
+            date_of_birth = data.get('dob') or data.get('date_of_birth')
+            gender = data.get('gender', 'OTHER')
+            grade_level = data.get('gradeLevel') or data.get('grade_level', 'Not specified')
+            primary_language = data.get('primaryLanguage') or data.get('primary_language', 'English')
+
+            # ✅ SANITIZE ALL FIELDS
+            for key in list(data.keys()):
+                value = data[key]
+                if isinstance(value, list):
+                    data[key] = value[0] if value else None
+
             # Validate required child fields
             if not first_name or not last_name:
                 return Response(
@@ -231,26 +293,37 @@ class ParentInputViewSet(viewsets.ModelViewSet):
                 last_name=last_name,
                 date_of_birth=date_of_birth,
                 defaults={
-                    'gender': gender or 'OTHER',
-                    'grade_level': grade_level or 'Not specified',
-                    'primary_language': primary_language or 'English',
-                    'parent': request.user,  # Link to current parent
+                    'gender': gender,
+                    'grade_level': grade_level,
+                    'primary_language': primary_language,
+                    'parent': request.user,
+                    'intake_status': 'completed',  # ✅ Set on Child
+                    'assessment_status': 'for_assessment',  # ✅ After intake
                 }
             )
             
             print(f"[ParentInput] Child {'created' if created else 'retrieved'}: {child}")
             
             # ✅ Add child_id and parent_id to data
-            data['child'] = str(child.child_id)  # Use child's UUID
-            data['parent'] = str(request.user.user_id)  # Use current user's UUID
+            data['child'] = str(child.child_id)
+            data['parent'] = str(request.user.user_id)
             
-            # Remove child fields from data so they don't duplicate
-            data.pop('first_name', None)
-            data.pop('last_name', None)
-            data.pop('date_of_birth', None)
-            data.pop('gender', None)
-            data.pop('grade_level', None)
-            data.pop('primary_language', None)
+            # ✅ DO NOT set these - they're on Child model, not ParentInput
+            # Remove them if they're in data
+            data.pop('intake_status', None)
+            data.pop('assessment_status', None)
+            data.pop('assessment_scheduled_date', None)
+            data.pop('enrollment_status', None)
+            
+            # ✅ HANDLE NEW FIELDS - Set defaults for optional fields
+            if not data.get('prior_services'):
+                data['prior_services'] = []
+            if not data.get('motor_needs'):
+                data['motor_needs'] = []
+            if not data.get('child_strengths'):
+                data['child_strengths'] = []
+            
+            print(f"[ParentInput] Data after processing: {data}")
             
             # Create serializer with updated data
             serializer = self.get_serializer(data=data)
@@ -261,14 +334,26 @@ class ParentInputViewSet(viewsets.ModelViewSet):
             
         except Exception as e:
             print(f"[ParentInput] Error: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return Response(
                 {'error': f'Error creating parent input: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+def perform_create(self, serializer):
+    """✅ Only set intake_status on ParentInput, not on Child"""
+    serializer.save(intake_status='completed')
+
     
     def perform_create(self, serializer):
-        """Save serializer (parent is already set in create method)"""
-        serializer.save()
+        """✅ UPDATED: Auto-set intake_status to 'completed' on creation"""
+        serializer.save(intake_status='completed')
+    
+    def perform_update(self, serializer):
+        """✅ NEW: Handle PATCH requests to update existing ParentInput"""
+        print(f"[ParentInput] Updating: {serializer.instance.parent_input_id}")
+        serializer.save(intake_status='completed')
 
 
 # ==================== TEACHER INPUT VIEWSET ====================

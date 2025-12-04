@@ -77,7 +77,8 @@ class ChildSerializer(serializers.ModelSerializer):
             'gender', 'primary_language', 'grade_level', 'medical_alerts',
             'medications', 'parent', 'parent_name', 'secondary_parent',
             'secondary_parent_name', 'eligibilities', 'developmental_history',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'intake_status', 'assessment_status', 
+            'assessment_scheduled_date', 'enrollment_status',
         ]
         read_only_fields = ['child_id', 'created_at', 'updated_at']
     
@@ -142,6 +143,7 @@ class ParentInputSerializer(serializers.ModelSerializer):
             # SECTION B: Developmental History and Assessment
             'sat_up_age', 'crawled_age', 'walked_age', 'first_words_age', 'formed_sentences_age',
             'previous_school_name', 'special_education_services_received', 'has_prior_iep', 'other_prior_services',
+            'prior_services',  # ✅ NEW - Section B
             'areas_of_concern',
             
             # SECTION C: Parent/Guardian Input
@@ -155,6 +157,7 @@ class ParentInputSerializer(serializers.ModelSerializer):
             
             # SECTION E: Sensory and Physical Needs
             'sensory_sensitivities', 'sensory_sensitivity_other',
+            'motor_needs',  # ✅ NEW - Section E
             'physical_accommodations_needed', 'physical_accommodations_required', 'physical_accommodations_details',
             
             # SECTION F: Goals and Expectations
@@ -162,6 +165,12 @@ class ParentInputSerializer(serializers.ModelSerializer):
             
             # SECTION G: Home Environment
             'strategies_routines_home', 'additional_support_needs', 'additional_support_resources_needed',
+            
+            # SECTION H: Child Strengths
+            'child_strengths',  # ✅ NEW - Section H
+            
+            # SECTION I: Daily Living Skills
+            'eating_independence', 'dressing_independence', 'toilet_skills', 'sleep_quality', 'daily_living_notes',  # ✅ NEW - Section I
         ]
         read_only_fields = [
             'parent_input_id', 'submission_date', 
