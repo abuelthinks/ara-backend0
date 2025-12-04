@@ -141,6 +141,48 @@ class Child(models.Model):
             (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day)
         )
 
+# ==================== ASSESSMENT REQUEST ====================
+class AssessmentRequest(models.Model):
+    STATUS_CHOICES = [
+        ("PENDING", "Pending approval"),
+        ("APPROVED", "Approved"),
+        ("REJECTED", "Rejected"),
+    ]
+
+    request_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    child = models.ForeignKey(Child, on_delete=models.CASCADE, related_name="assessment_requests")
+    parent = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="assessment_requests",
+        limit_choices_to={"role": "PARENT"},
+    )
+    specialist = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="assigned_assessment_requests",
+        limit_choices_to={"role": "SPECIALIST"},
+    )
+
+    preferred_date = models.DateField(null=True, blank=True)
+    preferred_time = models.TimeField(null=True, blank=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
+    admin_notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["child"]),
+            models.Index(fields=["specialist"]),
+            models.Index(fields=["status"]),
+        ]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Assessment request for {self.child} → {self.specialist} ({self.status})"
 
 # ==================== CHILDREN ELIGIBILITY ====================
 class ChildrenEligibility(models.Model):

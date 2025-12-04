@@ -7,7 +7,7 @@ from core.models import (
     IEPGoals, IEPObjectives, PlannedActivitiesServices,
     Accommodations, WeeklyProgressReport, WeeklyServicesProvided,
     WeeklyGoalsProgress, WeeklyProgressSummary, ProgressReportAggregate,
-    AuditLog, AIGenerationLog
+    AuditLog, AIGenerationLog, AssessmentRequest
 )
 
 
@@ -152,6 +152,44 @@ class AssessmentSerializer(serializers.ModelSerializer):
         read_only_fields = ['assessment_id', 'created_at', 'updated_at']
 
 
+class AssessmentRequestSerializer(serializers.ModelSerializer):
+    child_name = serializers.CharField(source="child.first_name", read_only=True)
+    specialist_name = serializers.CharField(source="specialist.get_full_name", read_only=True)
+    parent_name = serializers.CharField(source="parent.get_full_name", read_only=True)
+
+    class Meta:
+        model = AssessmentRequest
+        fields = [
+            "request_id",
+            "child",
+            "child_name",
+            "parent",
+            "parent_name",
+            "specialist",
+            "specialist_name",
+            "preferred_date",
+            "preferred_time",
+            "status",
+            "admin_notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "request_id",
+            "status",
+            "admin_notes",
+            "created_at",
+            "updated_at",
+            "parent",
+        ]
+
+    def create(self, validated_data):
+        # Parent is always the logged-in user
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            validated_data["parent"] = request.user
+        return super().create(validated_data)
+    
 # ==================== INPUT SERIALIZERS ====================
 class ParentInputSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(source='parent.get_full_name', read_only=True)

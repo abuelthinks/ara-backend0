@@ -8,7 +8,7 @@ from core.views import (
     ServicesAndTherapiesViewSet, IEPViewSet, IEPGoalsViewSet,
     IEPPerformanceLevelsViewSet, AccommodationsViewSet,
     WeeklyProgressReportViewSet, ProgressReportAggregateViewSet,
-    AuditLogViewSet, AIGenerationLogViewSet
+    AuditLogViewSet, AIGenerationLogViewSet, AssessmentRequestViewSet
 )
 
 router = DefaultRouter()
@@ -25,6 +25,7 @@ router.register(r'developmental-histories', DevelopmentalHistoryViewSet, basenam
 router.register(r'assessments', AssessmentViewSet, basename='assessment')
 router.register(r'assessment-skill-areas', AssessmentSkillAreaViewSet, basename='assessment-skill-area')
 router.register(r'disorder-screenings', DisorderScreeningViewSet, basename='disorder-screening')
+router.register(r"assessment-requests", AssessmentRequestViewSet, basename="assessment-request")
 
 # Input management (Parent, Teacher, Specialist)
 router.register(r'parent-inputs', ParentInputViewSet, basename='parent-input')

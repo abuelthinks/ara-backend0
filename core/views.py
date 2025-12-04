@@ -11,7 +11,7 @@ from core.models import (
     IEPGoals, IEPObjectives, PlannedActivitiesServices,
     Accommodations, WeeklyProgressReport, WeeklyServicesProvided,
     WeeklyGoalsProgress, WeeklyProgressSummary, ProgressReportAggregate,
-    AuditLog, AIGenerationLog
+    AuditLog, AIGenerationLog, AssessmentRequest
 )
 from core.serializers import (
     UserSerializer, UserCreateSerializer, ChildSerializer,
@@ -25,7 +25,7 @@ from core.serializers import (
     WeeklyProgressReportSerializer, WeeklyServicesProvidedSerializer,
     WeeklyGoalsProgressSerializer, WeeklyProgressSummarySerializer,
     ProgressReportAggregateSerializer, AuditLogSerializer,
-    AIGenerationLogSerializer, SpecialistListSerializer,
+    AIGenerationLogSerializer, SpecialistListSerializer, AssessmentRequestSerializer
 )
 
 
@@ -151,6 +151,42 @@ class ChildViewSet(viewsets.ModelViewSet):
         serializer = ChildrenEligibilitySerializer(eligibilities, many=True)
         return Response(serializer.data)
 
+
+# ==================== ASSESSMENT REQUEST VIEWSET ====================
+class AssessmentRequestViewSet(viewsets.ModelViewSet):
+    queryset = AssessmentRequest.objects.all()
+    serializer_class = AssessmentRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["child", "specialist", "status"]
+    ordering_fields = ["created_at"]
+    ordering = ["-created_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.role == "PARENT":
+            return qs.filter(parent=user)
+        if user.role == "SPECIALIST":
+            return qs.filter(specialist=user)
+        # Admin/others see all
+        return qs
+
+    # Admin can approve / reject
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    def approve(self, request, pk=None):
+        obj = self.get_object()
+        obj.status = "APPROVED"
+        obj.save(update_fields=["status"])
+        return Response({"status": "approved"})
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    def reject(self, request, pk=None):
+        obj = self.get_object()
+        obj.status = "REJECTED"
+        obj.save(update_fields=["status"])
+        return Response({"status": "rejected"})
+    
 
 # ==================== CHILD ELIGIBILITY VIEWSET ====================
 class ChildrenEligibilityViewSet(viewsets.ModelViewSet):
