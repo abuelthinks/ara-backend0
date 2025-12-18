@@ -97,19 +97,20 @@ class ChildViewSet(viewsets.ModelViewSet):
         """Filter children based on user role"""
         queryset = Child.objects.all()
         user = self.request.user
-        
+
         if user.role == 'PARENT':
             queryset = queryset.filter(
                 Q(parent=user) | Q(secondary_parent=user)
             )
         elif user.role == 'SPECIALIST':
-            # Specialists can see children they work with
-            child_ids = ServicesAndTherapies.objects.filter(
-                therapist=user
-            ).values_list('child_id', flat=True)
-            queryset = queryset.filter(child_id__in=child_ids)
-        
+            # Specialists see all children ready for assessment
+            queryset = queryset.filter(
+                assessment_status='for_assessment',
+                intake_status='completed',  # keep or remove as needed
+            )
+
         return queryset
+
     
     @action(detail=True, methods=['get'])
     def assessments(self, request, pk=None):
@@ -153,6 +154,21 @@ class ChildViewSet(viewsets.ModelViewSet):
 
 
 # ==================== ASSESSMENT REQUEST VIEWSET ====================
+from rest_framework import permissions
+
+class IsAdminOrSpecialist(permissions.BasePermission):
+    """
+    Allow access to admins (staff) or users with role = SPECIALIST.
+    """
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and (user.is_staff or getattr(user, "role", None) == "SPECIALIST")
+        )
+
+
 class AssessmentRequestViewSet(viewsets.ModelViewSet):
     queryset = AssessmentRequest.objects.all()
     serializer_class = AssessmentRequestSerializer
@@ -168,19 +184,20 @@ class AssessmentRequestViewSet(viewsets.ModelViewSet):
         if user.role == "PARENT":
             return qs.filter(parent=user)
         if user.role == "SPECIALIST":
-            return qs.filter(specialist=user)
+            # For now: this single specialist can see ALL pending requests
+            return qs.filter(status="PENDING")
         # Admin/others see all
         return qs
 
-    # Admin can approve / reject
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    # Specialist (and admin) can approve / reject
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrSpecialist])
     def approve(self, request, pk=None):
         obj = self.get_object()
         obj.status = "APPROVED"
         obj.save(update_fields=["status"])
         return Response({"status": "approved"})
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrSpecialist])
     def reject(self, request, pk=None):
         obj = self.get_object()
         obj.status = "REJECTED"
