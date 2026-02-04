@@ -6,12 +6,14 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True, min_length=8)
     email = serializers.EmailField()
-    first_name = serializers.CharField(max_length=100)
+    username = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     phone = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ['email', 'first_name', 'password', 'confirm_password', 'phone']
+        fields = ['email', 'username', 'first_name', 'last_name', 'password', 'confirm_password', 'phone']
 
     def validate_password(self, value):
         """Validate password strength"""
@@ -24,30 +26,61 @@ class ParentRegisterSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, data):
-        """Validate that passwords match and email is unique"""
+        """Validate fields and derive username if omitted"""
         if data['password'] != data['confirm_password']:
             raise serializers.ValidationError({"password": "Passwords do not match."})
         
-        # Check for existing email in User model
-        if User.objects.filter(email=data['email']).exists():
+        # Ensure email is unique
+        email = data.get('email', '').strip().lower()
+        if User.objects.filter(email=email).exists():
             raise serializers.ValidationError({"email": "Email already registered."})
         
+        # Require both first_name and last_name
+        first = (data.get('first_name') or '').strip()
+        last = (data.get('last_name') or '').strip()
+        if not first:
+            raise serializers.ValidationError({"first_name": "First name is required."})
+        if not last:
+            raise serializers.ValidationError({"last_name": "Last name is required."})
+        
+        # Derive username if blank: first + last (no spaces, lowercased)
+        username = (data.get('username') or '').strip()
+        if not username:
+            username = (first + last).replace(' ', '').lower()
+        
+        if not username:
+            # Fallback to email local part
+            username = email.split('@')[0]
+        
+        # Enforce unique username
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError({"username": "Username already taken."})
+        
+        data['email'] = email
+        data['username'] = username
+        data['first_name'] = first
+        data['last_name'] = last
         return data
 
     def create(self, validated_data):
         """Create new user with PARENT role"""
         validated_data.pop('confirm_password')
         phone = validated_data.pop('phone', '')
+        username = validated_data.pop('username')
+        first = validated_data.pop('first_name', '')
+        last = validated_data.pop('last_name', '')
+        email = validated_data.pop('email')
+        password = validated_data.pop('password')
         
         user = User.objects.create_user(
-            username=validated_data['email'],
-            email=validated_data['email'],
-            first_name=validated_data['first_name'],
-            password=validated_data['password'],
+            username=username,
+            email=email,
+            first_name=first,
+            last_name=last,
+            password=password,
             role='PARENT',
             phone=phone if phone else ''
         )
-        
         return user
 
 

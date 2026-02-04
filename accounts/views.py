@@ -15,7 +15,9 @@ def register_parent(request):
     Register a new parent account
     Expects: {
         "email": "parent@example.com",
-        "first_name": "John",
+        "username": "",                 # optional; if blank, derived from names
+        "first_name": "John",           # optional but require at least one of first/last
+        "last_name": "Doe",             # optional
         "phone": "+63 9XX XXX XXXX",
         "password": "SecurePass123",
         "confirm_password": "SecurePass123"
@@ -56,19 +58,28 @@ def register_parent(request):
 def login_view(request):
     """
     Custom login endpoint that returns JWT token pair and user data.
-    Expects: {"username": "...", "password": "..."}
+    Expects: {"username": "...", "password": "..."}  # username OR email accepted
     Returns: {"access": "...", "refresh": "...", "user": {...}}
     """
-    username = request.data.get('username')
+    identifier = request.data.get('username')
     password = request.data.get('password')
     
-    if not username or not password:
+    if not identifier or not password:
         return Response(
             {'error': 'Username and password are required'}, 
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    user = authenticate(username=username, password=password)
+    # Allow login with email or username
+    login_username = identifier
+    if '@' in identifier:
+        try:
+            user_obj = User.objects.get(email__iexact=identifier)
+            login_username = user_obj.username
+        except User.DoesNotExist:
+            login_username = identifier  # fall back; will fail authenticate
+    
+    user = authenticate(username=login_username, password=password)
     if not user:
         return Response(
             {'error': 'Invalid credentials'}, 
